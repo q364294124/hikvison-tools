@@ -1,0 +1,373 @@
+<UserControl x:Class="HikDeployTool.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="1.15*" MinWidth="420" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ==================== 左：参数 ==================== -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="项目与交付信息" Style="{StaticResource TextSection}" />
+                            <TextBlock Style="{StaticResource TextHint}" Margin="0,4,0,0"
+                                       Text="这三项会写进验收报告封面与导出文件名，交付前请确认无误。" />
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock Text="项目名称" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.ProjectName, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="例如：XX 园区一期视频监控工程" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="施工 / 验收单位" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.Operator, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="会印在报告封面上" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Margin="0,12,0,0">
+                                <TextBlock Text="报告与导出目录" Style="{StaticResource TextLabel}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding Settings.OutputDir, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="留空则使用程序目录下的 output" />
+                                    <Button Grid.Column="1" Command="{Binding PickOutputDirCommand}"
+                                            Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Content="选择…" />
+                                </Grid>
+                                <TextBlock Style="{StaticResource TextHint}" Margin="0,6,0,0"
+                                           Text="验收报告、抓图、导出的 CSV 都放在这里。建议指到一个网盘同步目录，交付资料不会丢。" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="运行参数" Style="{StaticResource TextSection}" />
+                            <TextBlock Style="{StaticResource TextHint}" Margin="0,4,0,0"
+                                       Text="这些值会直接传给 SDK，改动后请点左下角「保存设置」。" />
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,12">
+                                    <TextBlock Text="默认账号" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.DefaultUserName, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="新设备出厂账号固定为 admin，一般不用改" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,12">
+                                    <TextBlock Text="默认 SDK 端口" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.DefaultPort, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="海康默认 8000；若现场改过端口，这里同步修改" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,12">
+                                    <TextBlock Text="连接超时（毫秒）" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.ConnectTimeoutMs, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="验收时单个接口的等待上限，建议 5000；现场网络差可调到 10000">
+                                    </TextBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+                                    <TextBlock Text="批量并发数" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.MaxParallelism, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="SADP 走广播，并发过高会互相抢占网卡队列。建议 4，最多 32" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,12">
+                                    <TextBlock Text="SDK 日志等级" Style="{StaticResource TextLabel}" />
+                                    <ComboBox ItemsSource="{Binding LogLevelOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding Settings.SdkLogLevel}"
+                                              ToolTip="排查 SDK 层问题时调到 5 或 6，日志会明显变大" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,12">
+                                    <TextBlock Text="每台最多抓图通道数" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.CaptureMaxChannels, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="验收页抓图存证的上限，0 表示不抓" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,12,0">
+                                    <TextBlock Text="现场常用网关" Style="{StaticResource TextLabel}" />
+                                    <TextBox Text="{Binding Settings.DefaultGateway, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="网络配置页的「填入默认网关」用它，省得每次手敲" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="3" Grid.Column="1" VerticalAlignment="Bottom">
+                                    <CheckBox Content="验收时抓图存证"
+                                              IsChecked="{Binding Settings.CaptureEnabled}"
+                                              ToolTip="关掉可以加快验收速度，但报告里就没有画面证据了" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Margin="0,12,0,0">
+                                <TextBlock Text="SDK 日志目录" Style="{StaticResource TextLabel}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding Settings.SdkLogDir, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="留空则使用程序目录下的 sdk_log" />
+                                    <Button Grid.Column="1" Command="{Binding PickSdkLogDirCommand}"
+                                            Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Content="选择…" />
+                                    <Button Grid.Column="2" Command="{Binding OpenSdkLogDirCommand}"
+                                            Style="{StaticResource GhostButton}" Margin="8,0,0,0" Content="打开" />
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}"
+                                        MinWidth="110" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Style="{StaticResource IconPathSm}" Data="{StaticResource IconSave}"
+                                              Stroke="{StaticResource BrushTextOnAccent}" Margin="0,0,6,0" />
+                                        <TextBlock Text="保存设置" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding ResetDefaultsCommand}" Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,8,0" Content="恢复默认值" />
+                                <Button Command="{Binding OpenSettingsFileCommand}" Style="{StaticResource GhostButton}"
+                                        Content="打开配置文件" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ==================== 右：环境自检 ==================== -->
+            <Border Grid.Column="2" Style="{StaticResource Card}" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="运行环境自检" Style="{StaticResource TextSection}" VerticalAlignment="Center" />
+                            <Border Margin="10,0,0,0" VerticalAlignment="Center" CornerRadius="9" Padding="8,2">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource ChipSuccess}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasCritical}" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding EnvSummary}" FontSize="11.5">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource ChipSuccessText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasCritical}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource TextHint}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Text="海康 SDK 的问题九成出在「依赖库缺一件」和「权限不够」上。换一台机器部署前先跑一遍，红色项补齐再开工，比事后对着错误码猜要快得多。" />
+
+                        <WrapPanel Margin="0,12,0,0">
+                            <Button Command="{Binding RunCheckCommand}" Style="{StaticResource PrimaryButton}"
+                                    Margin="0,0,8,8" MinWidth="104"
+                                    IsEnabled="{Binding IsChecking, Converter={StaticResource InverseBoolean}}"
+                                    Content="重新自检" />
+                            <Button Command="{Binding CopyReportCommand}" Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,8,8" Content="复制自检报告" />
+                            <Button Command="{Binding InitNetSdkCommand}" Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,8,8"
+                                    ToolTip="提前初始化设备网络 SDK，把缺库 / 端口占用之类的问题在验收之前暴露出来"
+                                    Content="初始化设备网络 SDK" />
+                            <Button Command="{Binding RestartAsAdminCommand}" Style="{StaticResource SoftButton}"
+                                    Margin="0,0,8,8"
+                                    ToolTip="SADP 需要收发链路层广播包，普通权限下会返回 2040"
+                                    Content="以管理员身份重启" />
+                            <Button Command="{Binding OpenBaseDirCommand}" Style="{StaticResource GhostButton}"
+                                    Margin="0,0,8,8" Content="打开程序目录" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Divider}" />
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
+                        <ItemsControl ItemsSource="{Binding EnvironmentItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}" Padding="10,8" Margin="0,0,0,6"
+                                            Background="{StaticResource BrushSurfaceAlt}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" VerticalAlignment="Center"
+                                                        CornerRadius="9" Padding="8,2" MinWidth="48">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border" BasedOn="{StaticResource ChipSuccess}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Ok}" Value="False">
+                                                                    <Setter Property="Background" Value="{StaticResource BrushWarningSoft}" />
+                                                                </DataTrigger>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding Ok}" Value="False" />
+                                                                        <Condition Binding="{Binding Critical}" Value="True" />
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                                                </MultiDataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="11.5"
+                                                               HorizontalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource ChipSuccessText}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Ok}" Value="False">
+                                                                        <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                                                    </DataTrigger>
+                                                                    <MultiDataTrigger>
+                                                                        <MultiDataTrigger.Conditions>
+                                                                            <Condition Binding="{Binding Ok}" Value="False" />
+                                                                            <Condition Binding="{Binding Critical}" Value="True" />
+                                                                        </MultiDataTrigger.Conditions>
+                                                                        <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                                                    </MultiDataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource BrushTextPrimary}"
+                                                               ToolTip="{Binding Name}" />
+                                                    <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                                               TextWrapping="Wrap" Margin="0,3,0,0"
+                                                               Foreground="{StaticResource BrushTextMuted}" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- 失败项才显示"怎么办" -->
+                                            <Border Margin="0,7,0,0" Padding="9,6" CornerRadius="6"
+                                                    Background="{StaticResource BrushWarningSoft}"
+                                                    Visibility="{Binding Ok, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Style="{StaticResource IconPathSm}" Data="{StaticResource IconWarn}"
+                                                          Stroke="{StaticResource BrushWarning}" VerticalAlignment="Top"
+                                                          Margin="0,1,7,0" />
+                                                    <TextBlock Text="{Binding Hint}" FontSize="11.5" TextWrapping="Wrap"
+                                                               MaxWidth="520"
+                                                               Foreground="{StaticResource BrushTextSecondary}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ==================== 底部：运行时状态 ==================== -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Path Style="{StaticResource IconPathSm}" Data="{StaticResource IconNetwork}"
+                          Stroke="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                    <TextBlock Style="{StaticResource TextHint}" Text="{Binding SadpStatus}"
+                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Path Style="{StaticResource IconPathSm}" Data="{StaticResource IconShield}"
+                          Stroke="{StaticResource BrushTextMuted}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                    <TextBlock Style="{StaticResource TextHint}" Text="{Binding NetSdkStatus}"
+                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="9" Padding="9,2"
+                        Margin="12,0,0,0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource Chip}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAdministrator}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource BrushSuccessSoft}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock FontSize="11.5" Text="{Binding PrivilegeText}" MaxWidth="420"
+                               TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAdministrator}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

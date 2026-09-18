@@ -1,0 +1,253 @@
+<UserControl x:Class="HikDeployTool.Views.NetworkConfigView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:HikDeployTool.Views">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== 网络参数 ==================== -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="目标网络参数" Style="{StaticResource TextSection}" VerticalAlignment="Center" />
+                    <TextBlock Style="{StaticResource TextHint}" VerticalAlignment="Center" Margin="10,0,0,0"
+                               Text="参数会一次性下发给清单里所有设备，下发后设备立即重启断链。" />
+                </StackPanel>
+
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                        <TextBlock Text="起始 IP" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="140" Text="{Binding StartIp, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding Sequential}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,14,0">
+                        <TextBlock Text="步长" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="64" Text="{Binding Step, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding Sequential}"
+                                 ToolTip="相邻两台设备 IP 末段的差值，通常填 1" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Margin="0,0,14,0">
+                        <TextBlock Text="子网掩码" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="140" Text="{Binding SubnetMask, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" Margin="0,0,14,0">
+                        <TextBlock Text="网关" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="140" Text="{Binding Gateway, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="留空表示不改网关" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4" Margin="0,0,14,0">
+                        <TextBlock Text="SDK 端口" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="80" Text="{Binding SdkPort, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="5" Margin="0,0,14,0">
+                        <TextBlock Text="HTTP 端口" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="80" Text="{Binding HttpPort, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="6" Margin="0,0,14,0">
+                        <TextBlock Text="SDK TLS 端口" Style="{StaticResource TextLabel}" />
+                        <TextBox Width="90" Text="{Binding SdkOverTlsPort, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="0 表示不修改；部分新固件用 8443 走 TLS" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="7" MinWidth="220">
+                        <TextBlock Text="设备当前口令（改参数需要校验身份）" Style="{StaticResource TextLabel}" />
+                        <PasswordBox views:PasswordBoxHelper.Attach="True"
+                                     views:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </Grid>
+
+                <Border Style="{StaticResource Divider}" Margin="0,12,0,10" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Grid.Column="0" Content="按顺序自动分配 IP" IsChecked="{Binding Sequential}"
+                              VerticalAlignment="Center"
+                              ToolTip="勾选后按「起始 IP + 步长」依次分配；不勾则只改掩码/网关/端口，IP 保持不变" />
+                    <CheckBox Grid.Column="1" Content="改为 DHCP 自动获取" IsChecked="{Binding DhcpEnabled}"
+                              VerticalAlignment="Center" Margin="20,0,0,0" />
+                    <Button Grid.Column="2" Command="{Binding GuessGatewayCommand}" Style="{StaticResource GhostButton}"
+                            Content="网关填为 .1" Margin="18,0,0,0" />
+
+                    <StackPanel Grid.Column="3" Margin="18,0,0,0">
+                        <TextBlock Style="{StaticResource TextHint}" Text="{Binding MaskHint}" />
+                        <TextBlock Style="{StaticResource TextHint}" Text="{Binding SubnetCheckText}" Margin="0,3,0,0" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ==================== 清单工具条 ==================== -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Command="{Binding LoadTargetsCommand}" Style="{StaticResource SoftButton}" Content="载入选中设备" />
+                    <Button Command="{Binding UseAllDevicesCommand}" Style="{StaticResource GhostButton}" Content="载入全部设备" />
+                    <Button Command="{Binding ClearTargetsCommand}" Style="{StaticResource GhostButton}" Content="清空清单" />
+                    <Button Command="{Binding RebuildPlanCommand}" Style="{StaticResource GhostButton}" Content="重算计划" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Style="{StaticResource TextHint}" VerticalAlignment="Center"
+                           Margin="16,0" TextTrimming="CharacterEllipsis" Text="{Binding PlanSummary}" />
+            </Grid>
+        </Border>
+
+        <!-- ==================== 计划与结果 ==================== -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.25*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardTight}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource BrushSurfaceAlt}"
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,9">
+                        <Grid>
+                            <TextBlock Text="{Binding PlanTitle}" Style="{StaticResource TextSection}" />
+                            <TextBlock HorizontalAlignment="Right" Style="{StaticResource TextHint}"
+                                       Text="{Binding TargetCount, StringFormat=共 {0} 台}" />
+                        </Grid>
+                    </Border>
+
+                    <DataGrid ItemsSource="{Binding Assignments}" IsReadOnly="True" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="目标" Binding="{Binding Target}" Width="160" />
+                            <DataGridTextColumn Header="当前 IP" Binding="{Binding OldIp}" Width="140" />
+                            <DataGridTemplateColumn Header="→  目标 IP" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding NewIp}" VerticalAlignment="Center"
+                                                   FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{StaticResource BrushAccent}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="备注" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Note}" VerticalAlignment="Center" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <!-- 默认按"需要注意"显示：计划里出现重复/冲突都要醒目 -->
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Note}" Value="">
+                                                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource CardTight}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource BrushSurfaceAlt}"
+                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,9">
+                        <Grid>
+                            <TextBlock Text="执行结果" Style="{StaticResource TextSection}" />
+                            <TextBlock HorizontalAlignment="Right" Style="{StaticResource TextHint}"
+                                       Text="{Binding ResultSummary}" />
+                        </Grid>
+                    </Border>
+                    <DataGrid ItemsSource="{Binding Results}" IsReadOnly="True" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="目标" Binding="{Binding Target}" Width="150" />
+                            <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="130" />
+                            <DataGridTemplateColumn Header="结论" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Success}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="说明" Binding="{Binding Message}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ==================== 执行条 ==================== -->
+        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,10,0,0" Padding="14,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
+                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" />
+                    <TextBlock Style="{StaticResource TextHint}" Margin="0,7,0,0">
+                        <Run Text="{Binding ProgressText, Mode=OneWay}" />
+                        <Run Text="  ·  " />
+                        <Run Text="{Binding ResultSummary, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Command="{Binding CancelCommand}" Style="{StaticResource SecondaryButton}"
+                            Content="取消" Margin="0,0,8,0"
+                            Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Command="{Binding ExportResultsCommand}" Style="{StaticResource SecondaryButton}"
+                            Content="导出结果" Margin="0,0,8,0" />
+                    <Button Command="{Binding RunCommand}" Style="{StaticResource PrimaryButton}"
+                            MinWidth="150" Content="{Binding RunButtonText}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

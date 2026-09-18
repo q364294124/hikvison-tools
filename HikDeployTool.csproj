@@ -1,0 +1,196 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- 实时预览需要 WinForms：SDK 的 hPlayWnd 模式只认原生窗口句柄，
+         用 WindowsFormsHost 承载一个 Panel 把句柄交给它。WPF 元素没有 HWND 可给。 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WFO0003（建议把 DPI 配置从 manifest 挪到 ApplicationHighDpiMode）是 WinForms
+         分析器的建议；本程序 DPI 感知以 WPF 为主、由 app.manifest 的
+         permonitorv2 声明负责，WinForms 只承担一个视频 Panel，不该反客为主。 -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>HikDeployTool</RootNamespace>
+    <AssemblyName>HikDeployTool</AssemblyName>
+    <!-- exe 的程序图标：任务栏、资源管理器、alt-tab 里看到的那个。
+         由 tools/make_app_icon.py 生成（多尺寸 16~256），改完脚本要重新跑一次。 -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <Version>1.0.0</Version>
+    <Product>海康设备交付运维工具</Product>
+    <!-- 这两个会写进 exe 的文件属性（右键→属性→详细信息），现场排查版本时
+         甲方或售后第一眼看的就是这里，必须与 CompanyInfo.cs 保持一致。 -->
+    <Company>青岛明远达电子设备有限公司</Company>
+    <Copyright>© 2026 青岛明远达电子设备有限公司 版权所有</Copyright>
+    <NeutralLanguage>zh-Hans</NeutralLanguage>
+    <DebugType>portable</DebugType>
+    <!-- 中文界面不被本地化资源覆盖 -->
+    <UICulture>zh-CN</UICulture>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 去掉 WPF 隐式 using 里的 System.Windows.Shapes：
+         它带来的 Path 类型会和 System.IO.Path 冲突（CS0104 二义性），
+         本工程完全不画 Shape，移除最省事。 -->
+    <Using Remove="System.Windows.Shapes" />
+    <Using Remove="System.Windows.Navigation" />
+    <!-- UseWindowsForms 会把这两个塞进隐式 using：
+         System.Windows.Forms.Application / UserControl 会和 WPF 的同名类型 CS0104 撞名，
+         十几个 code-behind 全炸。工程里只在一个 XAML 里用 WinForms（PreviewView 的 Panel），
+         用 xmlns 显式引入就够了，全局 using 不要它们。 -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+
+    <!-- WPF 项目的隐式 using 集合比普通项目少，不含 System.IO。
+         本工程大量使用 Path / Directory / File / FileInfo（配合上面去掉 Shapes，
+         这里的 Path 一定解析到 System.IO.Path），在这里补一次，
+         省得给二十多个文件各加一行 using。 -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 程序图标同时作为 WPF 资源嵌进去，MainWindow 的 Icon 才能通过 pack URI 拿到它
+         （ApplicationIcon 只管 exe 文件本身，窗口标题栏/任务栏用的是 Window.Icon）。 -->
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <!-- ============ 海康 SDK 路径（相对本工程的上级目录） ============ -->
+  <PropertyGroup>
+    <HikSdkRoot>$(MSBuildProjectDirectory)\..\..\..</HikSdkRoot>
+    <HikNetSdkLib>$(HikSdkRoot)\HCNetSDKV6.1.11.30_build20260805_Win64_ZH\库文件</HikNetSdkLib>
+    <HikSadpLib>$(HikSdkRoot)\HCSadpSDKV4.6.0.10_build20260911_Win64_ZH\lib\win64</HikSadpLib>
+    <HikSadpXml>$(HikSadpLib)\HCSadpSDK.xml</HikSadpXml>
+  </PropertyGroup>
+
+  <!-- ================= SDK 运行库清单 =================
+       放在项目级 ItemGroup（而非 Target 内）是为了让 Build 与 Publish 两个目标共用同一份清单，
+       少一份重复就少一处漏改。 -->
+  <ItemGroup>
+    <!-- HCNetSDK 主库：必须与 HikDeployTool.exe 同目录 -->
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\HCNetSDK.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\HCCore.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\PlayCtrl.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\hlog.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\hpr.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\zlib1.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\SuperRender.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\AudioRender.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\AudioProcess.dll" />
+    <!-- 加密库：一定是 3.x 的名字。System32 里可能躺着旧版 libssl-1_1-x64.dll / libeay32.dll，
+         那两个 HCNetSDK 不认，这里必须带新版。 -->
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\libssl-3-x64.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\libcrypto-3-x64.dll" />
+    <!-- 组件按需依赖的辅助库（录像回放 / 转码 / 音频），程序本体的功能用不到，
+         但 SDK 内部会在某些路径上试探性加载它们，带上省得现场出现"能搜到设备、一点开就报错"。 -->
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\HmMerge.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\HXVA.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\MP_Render.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\NPQos.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\libmmd.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\libsafefunc.dll" />
+    <_NetSdkRootDlls Include="$(HikNetSdkLib)\OpenAL32.dll" />
+
+    <!-- HCNetSDKCom 组件：设备配置 / 报警 / 预览 / 回放 / 语音对讲等，
+         由 HCNetSDK 运行时按需加载。 -->
+    <_NetSdkComDlls Include="$(HikNetSdkLib)\HCNetSDKCom\*.dll" />
+
+    <!-- SADP 库 -->
+    <_SadpDlls Include="$(HikSadpLib)\Sadp.dll" />
+    <_SadpDlls Include="$(HikSadpLib)\HCOTAPDCM.dll" />
+    <_SadpDlls Include="$(HikSadpLib)\libcrypto-3-x64.dll" />
+    <_SadpDlls Include="$(HikSadpLib)\libssl-3-x64.dll" />
+    <_SadpDlls Include="$(HikSadpLib)\zlib1.dll" />
+  </ItemGroup>
+
+  <!-- ============ 编译后自动部署 SDK 运行库 ============ -->
+  <!--
+    这里踩过的三个坑，改之前先看完：
+
+    1) HCNetSDKCom 必须保留子目录结构。
+       旧写法是 <_NetSdkDlls Include="...\HCNetSDKCom\**\*.dll" /> 配
+       DestinationFolder="$(OutDir)%(RecursiveDir)"。问题在于 ** 匹配"直接子文件"时
+       %(RecursiveDir) 是空串，16 个组件全被平铺进输出根目录，子目录结构就没了。
+       现在拆成独立一组，目的地显式写死 $(HikDeployDir)HCNetSDKCom。
+       另外根目录里再放一份同样的组件（下面第三段 Copy）：SDK 6.x 内部是用
+       LoadLibrary("HCGeneralCfgMgr.dll") 这种裸名字加载组件的，Windows 的解析顺序
+       把 exe 所在目录排在前面，根目录有副本就一定找得到；而官方文档又要求保留
+       HCNetSDKCom 结构。两边都放，谁都不用赌，代价只是多约 20MB。
+
+    2) 目的地用参数传，不直接写 $(OutDir)。
+       dotnet publish 时构建产物会先落到中间目录再拷进 publish 目录，两个入口目的地不同。
+       注意这里用 <MSBuild Projects="$(MSBuildProjectFullPath)" Properties="HikDeployDir=...">
+       去调核心目标，而不是 <CallTarget>：
+       CallTarget 看起来更顺手，但它在调用目标里设置的属性传不到被调目标，
+       HikDeployDir 会是空串（表现是 Copy 报 MSB3023"未指定目标位置"、运行库一个都没拷进去）。
+       MSBuild 任务的 Properties 才是真正把值当全局属性传下去的方式。
+
+    3) 不复制 GdiPlus.dll。
+       SDK 目录里那份是给老系统兜底用的；跟着发布会让程序优先加载本地副本而不是
+       系统 GDI+，反而容易出问题。系统自己会提供。
+  -->
+  <Target Name="DeployHikSdkToOutDir" AfterTargets="Build">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="DeployHikSdkCore"
+             Properties="HikDeployDir=$(OutDir)"
+             RemoveProperties="TargetFramework;RuntimeIdentifier" />
+  </Target>
+
+  <Target Name="DeployHikSdkToPublishDir" AfterTargets="Publish">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="DeployHikSdkCore"
+             Properties="HikDeployDir=$(PublishDir)"
+             RemoveProperties="TargetFramework;RuntimeIdentifier" />
+  </Target>
+
+  <Target Name="DeployHikSdkCore">
+    <!-- 目的地统一补一个结尾反斜杠。
+         dotnet build 给的 $(OutDir) 自带分隔符，但 dotnet publish -o 传进来的
+         $(PublishDir) 不一定带；少了它 $(HikDeployDir)HCNetSDKCom 会被拼成
+         "…\publishHCNetSDKCom" 这种不存在的路径，Copy 静默失败（ContinueOnError）。
+         这类错不报错、只是文件没过去，最容易在交付现场才发现。 -->
+    <PropertyGroup>
+      <HikDeployDir>$([MSBuild]::EnsureTrailingSlash('$(HikDeployDir)'))</HikDeployDir>
+    </PropertyGroup>
+
+    <Message Importance="high" Text="[部署] 复制海康 SDK 运行库到 $(HikDeployDir)" />
+
+    <!-- ① 主库 / 辅助库 → 输出根目录 -->
+    <Copy SourceFiles="@(_NetSdkRootDlls)"
+          DestinationFolder="$(HikDeployDir)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+
+    <!-- ② 组件 → HCNetSDKCom 子目录（保持 SDK 原始结构） -->
+    <Copy SourceFiles="@(_NetSdkComDlls)"
+          DestinationFolder="$(HikDeployDir)HCNetSDKCom"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+
+    <!-- ③ 组件 → 根目录再放一份，兜住"按裸文件名加载"的路径 -->
+    <Copy SourceFiles="@(_NetSdkComDlls)"
+          DestinationFolder="$(HikDeployDir)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+
+    <!-- ④ SADP 库与配置 xml 必须同目录，少了 xml 连 SADP_Start_V40 都起不来 -->
+    <Copy SourceFiles="@(_SadpDlls)"
+          DestinationFolder="$(HikDeployDir)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+    <Copy SourceFiles="$(HikSadpXml)"
+          DestinationFolder="$(HikDeployDir)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+  </Target>
+
+</Project>

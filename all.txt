@@ -1,0 +1,51 @@
+﻿海康设备交付运维工具 自检报告  2026-09-15 16:23:07
+程序目录：C:\Users\admin\Desktop\海康\HikDeployTool\src\HikDeployTool\bin\Release\net10.0-windows\win-x64\
+进程权限：普通用户
+------------------------------------------------------------------
+
+【环境自检】
+[警告] 管理员权限：当前为普通用户权限
+        处理建议：SADP 需要操作网卡收发广播包，普通权限下会返回 2040。点状态栏的「以管理员身份重启」即可。
+[正常] SADP · Sadp.dll：已就位
+[正常] SADP · HCSadpSDK.xml：已就位
+[正常] SADP · HCNetSDK.dll：已就位
+[正常] SADP · HCOTAPDCM.dll：已就位
+[正常] SADP · libcrypto-3-x64.dll：已就位
+[正常] SADP · libssl-3-x64.dll：已就位
+[正常] SADP · zlib1.dll：已就位
+[正常] NetSDK · HCNetSDK.dll：已就位
+[正常] NetSDK · HCCore.dll：已就位
+[正常] NetSDK · HCNetSDKCom：已就位
+[正常] NetSDK · libcrypto-3-x64.dll：已就位
+[正常] NetSDK · libssl-3-x64.dll：已就位
+[正常] NetSDK · zlib1.dll：已就位
+[正常] NetSDK · hlog.dll：已就位
+[正常] NetSDK · hpr.dll：已就位
+[正常] WinPcap / Npcap：C:\Windows\system32\wpcap.dll
+[正常] 结构体布局自检：26 个结构体与头文件推算大小完全一致
+[正常] System32 旧版 OpenSSL 冲突检查：未发现冲突
+
+【界面自检】
+[正常] 全局资源字典 + MainWindow.xaml：解析成功
+[正常] DeviceDiscoveryViewModel：视图加载成功
+[正常] ActivationViewModel：视图加载成功
+[正常] NetworkConfigViewModel：视图加载成功
+[正常] PasswordResetViewModel：视图加载成功
+[正常] AssetViewModel：视图加载成功
+[正常] AcceptanceViewModel：视图加载成功
+[正常] LogViewModel：视图加载成功
+[正常] SettingsViewModel：视图加载成功
+
+【界面实机自检】
+[正常] 主窗口已实际显示并完成布局（窗口置于屏幕外）
+[正常] DeviceDiscoveryViewModel：切换 + 布局无异常
+[正常] ActivationViewModel：切换 + 布局无异常
+[正常] NetworkConfigViewModel：切换 + 布局无异常
+[正常] PasswordResetViewModel：切换 + 布局无异常
+[正常] AssetViewModel：切换 + 布局无异常
+[正常] AcceptanceViewModel：切换 + 布局无异常
+[正常] LogViewModel：切换 + 布局无异常
+[正常] SettingsViewModel：切换 + 布局无异常
+
+------------------------------------------------------------------
+结论：全部通过。

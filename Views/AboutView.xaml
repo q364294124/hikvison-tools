@@ -1,0 +1,214 @@
+<UserControl x:Class="HikDeployTool.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      版面说明（改之前先看）：
+
+      这一页是给"甲方 / 监理 / 技术支持"看的，不是给操作员看的，
+      所以排版目标只有一个：从屏幕上看过去像一张正式的公司介绍页，
+      而不是三段挤在一起的大段文字。据此分四层：
+
+        ① 抬头   —— 谁做的（公司标识 + 全称 + 业务定位 + 版本）
+        ② 业务   —— 做什么（三列等高卡，正文保留原句，另配关键词标签）
+        ③ 环境   —— 软件什么版本、依赖什么状态（两列事实表 + 复制按钮）
+        ④ 页脚   —— 用途说明与版权
+
+      三个业务方向用"三列等高"而不是"三行堆叠"：
+      横向三列在 1400 宽的窗口里每列约 340px，一行正文 3~4 行就能读完；
+      若改成一列堆叠，每张卡只有一行半文字，右边空一大片，看着像没做完。
+    -->
+
+    <UserControl.Resources>
+        <!-- 业务卡模板：标题 + 图标 + 正文 + 关键词标签（+ 可选脚注） -->
+        <DataTemplate x:Key="AboutSectionCard">
+            <Border Style="{StaticResource Card}" Padding="16,14">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource IconPathSm}" Data="{Binding Glyph,
+                                  Converter={StaticResource ResourceKeyToGeometry}}"
+                              Stroke="{StaticResource BrushAccent}" Margin="0,0,8,0"
+                              VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource TextSection}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Body}" Margin="0,11,0,0"
+                               FontSize="12.5" LineHeight="21" TextWrapping="Wrap"
+                               Foreground="{StaticResource BrushTextSecondary}" />
+
+                    <!-- 关键词：把正文里的名词提出来做成标签，避免整张卡只有一坨灰字 -->
+                    <ItemsControl ItemsSource="{Binding Tags}" Margin="0,12,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Chip}" Margin="0,0,6,6"
+                                        Background="{StaticResource BrushAccentSoft}">
+                                    <TextBlock Style="{StaticResource ChipAccentText}" Text="{Binding}" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Margin="0,6,0,0" Padding="10,7" CornerRadius="6"
+                            Background="{StaticResource BrushSurfaceSunken}"
+                            Visibility="{Binding HasFootnote, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding Footnote}" FontSize="11.5" LineHeight="18"
+                                   TextWrapping="Wrap" Foreground="{StaticResource BrushTextMuted}" />
+                    </Border>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,8,0" Focusable="False">
+        <StackPanel>
+
+            <!-- ==================== ① 抬头：公司标识 ==================== -->
+            <Border Style="{StaticResource Card}" Padding="20,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="58" Height="58" CornerRadius="14"
+                            Background="{StaticResource BrushBrandSoft}" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconBrandMark}"
+                              Style="{StaticResource IconPath}" Width="32" Height="32"
+                              Stroke="{StaticResource BrushBrand}" StrokeThickness="1.8"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="16,0,20,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CompanyName}" FontSize="19" FontWeight="SemiBold"
+                                   Foreground="{StaticResource BrushTextPrimary}" />
+                        <TextBlock Text="{Binding CompanyTagline}" FontSize="12.5" Margin="0,7,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="{StaticResource BrushTextSecondary}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <Border Style="{StaticResource ChipAccent}" HorizontalAlignment="Right">
+                            <TextBlock Style="{StaticResource ChipAccentText}">
+                                <Run Text="软件版本 " />
+                                <Run Text="{Binding VersionText, Mode=OneWay}" />
+                            </TextBlock>
+                        </Border>
+                        <TextBlock Style="{StaticResource TextHint}" Margin="0,8,0,0" FontSize="11"
+                                   TextAlignment="Right" Text="{Binding ProductName}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== ② 业务：三列等高 ==================== -->
+            <!-- 三列 + 两个 12px 间隔列。用显式的间隔列而不是给卡片加右边距，
+                 这样第三张卡的右边正好贴齐，不会留一条多余的 12px 空白。 -->
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- HorizontalContentAlignment/VerticalContentAlignment 必须显式给 Stretch：
+                     ContentControl 默认不拉伸内容，卡片会缩成内容宽度，三列宽度就不一致了。 -->
+                <ContentControl Grid.Column="0" Content="{Binding CoreBusinessSection}"
+                                ContentTemplate="{StaticResource AboutSectionCard}"
+                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                <ContentControl Grid.Column="2" Content="{Binding EngineeringSection}"
+                                ContentTemplate="{StaticResource AboutSectionCard}"
+                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                <ContentControl Grid.Column="4" Content="{Binding PartnerSection}"
+                                ContentTemplate="{StaticResource AboutSectionCard}"
+                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+            </Grid>
+
+            <!-- ==================== ③ 软件与环境 ==================== -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,10,0,0">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="软件与环境信息" Style="{StaticResource TextSection}" />
+                            <TextBlock Style="{StaticResource TextHint}" Margin="0,4,0,0"
+                                       Text="现场排障时先把这几项发给技术支持，能省掉一轮来回确认。" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Command="{Binding OpenBaseDirCommand}" Style="{StaticResource GhostButton}"
+                                    Content="打开程序目录" MinHeight="28" Padding="10,0" Margin="0,0,8,0" />
+                            <Button Command="{Binding CopyInfoCommand}" Style="{StaticResource SecondaryButton}"
+                                    Content="复制环境信息" MinHeight="28" Padding="12,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Style="{StaticResource Divider}" />
+
+                    <!-- 两列事实表。UniformGrid 让左右两列等宽，值列不会因为某一项特别长而变形。 -->
+                    <ItemsControl ItemsSource="{Binding Facts}" Margin="0,-2,0,-14">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Margin" Value="0,0,24,14" />
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Label}" Style="{StaticResource TextStatLabel}" />
+                                    <!-- 路径与版本号可能很长，这里截断并挂 ToolTip：
+                                         宁可省略号 + 悬停看全，也不让文字撑破卡片跑到隔壁列去。 -->
+                                    <TextBlock Text="{Binding Value}" Margin="0,3,0,0"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Value}"
+                                               Foreground="{StaticResource BrushTextPrimary}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="{StaticResource FontUi}" />
+                                                <Setter Property="FontSize" Value="12.5" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMono}" Value="True">
+                                                        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+                                                        <Setter Property="FontSize" Value="12" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Hint}" Style="{StaticResource TextHint}"
+                                               FontSize="11" Margin="0,3,0,0"
+                                               Visibility="{Binding HasHint, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== ④ 页脚：用途与版权 ==================== -->
+            <StackPanel Margin="0,16,0,4" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding ToolUsageNote}" Style="{StaticResource TextHint}"
+                           FontSize="11.5" TextAlignment="Center" />
+                <TextBlock Text="{Binding Copyright}" Margin="0,7,0,0" FontSize="11.5"
+                           TextAlignment="Center" Foreground="{StaticResource BrushTextMuted}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,373 @@
+<UserControl x:Class="HikDeployTool.Views.DoorControlView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:HikDeployTool.Views">
+
+    <UserControl.Resources>
+        <!-- 门控制按钮基样式：默认普通外观，各按钮按 DoorItem.ActiveMode 自行触发高亮
+             （以前"开门"永远蓝着、不跟门的实际状态走，现场分不清是常开还是常闭）。 -->
+        <Style x:Key="DoorModeButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}" />
+    </UserControl.Resources>
+
+    <!--
+      版面说明（改之前先看）：
+
+      左窄右宽两栏（与「实时预览」同构）：
+        左栏 300px  —— 门禁设备选择（免密自动连接，没有登录框：凭据来自入库时验证保存的口令）；
+        右栏自适应 —— 上：门大卡列表（每门一张大卡，五个控制按钮，高亮跟实际状态）；
+                       下：刷卡通行记录（查询按钮 + 表格）。
+
+      几条硬约束：
+        1. 门卡里的五个控制按钮都带 CommandParameter={Binding}（门对象本身），
+           由 VM 的 ControlDoor 统一分发，别在卡里各写一份逻辑；
+        2. 远程开门是敏感操作：按钮不做「危险样式」威慑，靠运行日志留痕追溯；
+        3. 通行记录表是只读 DataGrid（IsReadOnly + CanUserAddRows=False），
+           现场人员只需要看和核对，不需要编辑。
+    -->
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ==================== 左栏：设备选择（免密自动连接） ==================== -->
+        <Border Grid.Column="0" Style="{StaticResource Card}" Padding="16">
+            <StackPanel>
+                <TextBlock Text="门禁设备" Style="{StaticResource TextSection}" />
+
+                <ComboBox Margin="0,10,0,0"
+                          ItemsSource="{Binding Candidates}"
+                          SelectedItem="{Binding SelectedDevice}"
+                          ToolTip="只列门禁设备（DS-K 系列）；列表来自「设备发现」与资产台账">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,1">
+                                <TextBlock FontSize="12.5">
+                                    <Run Text="{Binding IPv4Address, Mode=OneWay}" />
+                                    <Run Text="：" />
+                                    <Run Text="{Binding SdkPort, Mode=OneWay}" />
+                                    <Run Text="  " />
+                                    <Run Text="{Binding ModelText, Mode=OneWay}" Foreground="#8D9AAA" />
+                                </TextBlock>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource ChipAccent}" Padding="6,1" Margin="0,2,6,2"
+                                            Visibility="{Binding CategoryText, Converter={StaticResource NotEmptyToVisibility}}">
+                                        <TextBlock Text="{Binding CategoryText, Mode=OneWay}" Style="{StaticResource ChipAccentText}" FontSize="10.5" />
+                                    </Border>
+                                    <TextBlock Text="{Binding SerialNo, Mode=OneWay}" FontSize="10.5" VerticalAlignment="Center"
+                                               FontFamily="{StaticResource FontMono}" Foreground="#8D9AAA" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <Button Command="{Binding RefreshCommand}" Style="{StaticResource GhostButton}"
+                        Content="刷新列表（已发现 + 台账）" MinHeight="28" Margin="0,8,0,0"
+                        HorizontalAlignment="Left" Padding="10,0" />
+
+                <Border Style="{StaticResource Divider}" />
+
+                <Button Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryButton}"
+                        Content="重新连接" Margin="0,2,0,0" />
+                <Button Command="{Binding DisconnectCommand}" Style="{StaticResource SecondaryButton}"
+                        Content="断开" Margin="0,8,0,0" />
+
+                <TextBlock Style="{StaticResource TextHint}" Margin="0,10,0,0" FontSize="11"
+                           TextWrapping="Wrap"
+                           Text="选中存过凭据的门禁设备会自动免密连接，无需再输密码。没存过凭据的设备请先到「设备发现」页「验证并入库」——入库时验证过的口令会加密保存，各页通用。每次远程开门/常开/常闭都会写入运行日志（谁 · 哪台设备 · 哪扇门 · 什么时间）。切到其他页不会断开连接。" />
+            </StackPanel>
+        </Border>
+
+        <!-- ==================== 右栏：门控制 + 通行记录 ==================== -->
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 状态条：常驻最上方，连接状态灯 + 当前提示 -->
+            <Border Grid.Row="0" Style="{StaticResource CardTight}" Padding="16,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="9" Height="9" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource BrushTextMuted}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource BrushSuccess}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsConnecting}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource BrushWarning}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource BrushTextSecondary}" />
+                    </StackPanel>
+
+                    <Button Grid.Column="2" Command="{Binding RefreshStatusCommand}" Style="{StaticResource GhostButton}"
+                            MinHeight="26" Padding="10,0" Content="刷新门状态" />
+                </Grid>
+            </Border>
+
+            <!-- 门列表：每扇门一张大卡（占满整行，好按好认） -->
+            <Border Grid.Row="1" Style="{StaticResource CardTight}" Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Doors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- 大卡：上（门头：图标 + 名称 + 状态大chip）下（五个控制按钮一行铺开）。
+                                     门禁通常一两扇门，旧的小行卡信息挤成一团、按钮也难点。 -->
+                                <Border Style="{StaticResource Card}" Padding="20,16" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 门头 -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Width="40" Height="40" CornerRadius="10"
+                                                        Background="{StaticResource BrushAccentSoft}">
+                                                    <Path Style="{StaticResource IconPath}" Data="{StaticResource IconDoor}"
+                                                          Width="20" Height="20" Stroke="{StaticResource BrushAccent}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Label}" FontSize="16" FontWeight="SemiBold" />
+                                                    <TextBlock FontSize="11" Foreground="{StaticResource BrushTextMuted}"
+                                                               Margin="0,2,0,0"
+                                                               ToolTip="设备支持状态查询时自动回读；不支持的高亮按最后一次控制命令显示">
+                                                        <Run Text="门号 " /><Run Text="{Binding Number, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- 状态大 chip：状态色跟着内容走（已关闭=绿，开启=黄，异常=红，未知=默认） -->
+                                            <Border Grid.Column="2" Padding="14,6" CornerRadius="14"
+                                                    BorderBrush="{StaticResource BrushDivider}" BorderThickness="1"
+                                                    VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <!-- 默认底色必须放 Setter：本地值优先级高于样式触发器，写在标签上触发器就永远不生效 -->
+                                                        <Setter Property="Background" Value="{StaticResource BrushSurfaceAlt}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding StatusText}" Value="已关闭">
+                                                                <Setter Property="Background" Value="{StaticResource BrushSuccessSoft}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding StatusText}" Value="开启">
+                                                                <Setter Property="Background" Value="{StaticResource BrushWarningSoft}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding StatusText}" Value="异常">
+                                                                <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="门状态" FontSize="11" Margin="0,0,8,0"
+                                                               Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="13.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- 控制按钮组：一行铺满，高亮跟 ActiveMode 走 -->
+                                        <Grid Grid.Row="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- ActiveMode 挂在门对象上：四个模式按钮共用一个高亮判定 -->
+                                            <Button Grid.Column="0" Content="开门" ToolTip="远程开门（单次）"
+                                                    Command="{Binding DataContext.OpenDoorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    IsEnabled="{Binding IsIdle}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource DoorModeButton}">
+                                                        <Setter Property="MinHeight" Value="40" />
+                                                        <Setter Property="FontSize" Value="13.5" />
+                                                        <Setter Property="Padding" Value="10,0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ActiveMode}" Value="open">
+                                                                <Setter Property="Background" Value="{StaticResource BrushAccent}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}" />
+                                                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="2" Content="关门" ToolTip="远程关门"
+                                                    Command="{Binding DataContext.CloseDoorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    IsEnabled="{Binding IsIdle}" CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource DoorModeButton}">
+                                                        <Setter Property="MinHeight" Value="40" />
+                                                        <Setter Property="FontSize" Value="13.5" />
+                                                        <Setter Property="Padding" Value="10,0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ActiveMode}" Value="close">
+                                                                <Setter Property="Background" Value="{StaticResource BrushAccent}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}" />
+                                                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="4" Content="常开" ToolTip="保持常开（放行状态）"
+                                                    Command="{Binding DataContext.AlwaysOpenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    IsEnabled="{Binding IsIdle}" CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource DoorModeButton}">
+                                                        <Setter Property="MinHeight" Value="40" />
+                                                        <Setter Property="FontSize" Value="13.5" />
+                                                        <Setter Property="Padding" Value="10,0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ActiveMode}" Value="alwaysOpen">
+                                                                <Setter Property="Background" Value="{StaticResource BrushWarning}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
+                                                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="6" Content="常闭" ToolTip="保持常闭（禁行状态）"
+                                                    Command="{Binding DataContext.AlwaysCloseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    IsEnabled="{Binding IsIdle}" CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource DoorModeButton}">
+                                                        <Setter Property="MinHeight" Value="40" />
+                                                        <Setter Property="FontSize" Value="13.5" />
+                                                        <Setter Property="Padding" Value="10,0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ActiveMode}" Value="alwaysClose">
+                                                                <Setter Property="Background" Value="{StaticResource BrushDanger}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
+                                                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnAccent}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="8" Content="恢复正常" ToolTip="取消常开/常闭，恢复正常验证模式"
+                                                    Command="{Binding DataContext.ResetDoorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    IsEnabled="{Binding IsIdle}" CommandParameter="{Binding}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    MinHeight="40" FontSize="13.5" Padding="10,0" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!-- 通行记录 -->
+            <Border Grid.Row="3" Style="{StaticResource CardTight}" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="240" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="4,2,4,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <TextBlock Text="通行记录" Style="{StaticResource TextSection}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding EventSummary}" Margin="12,0,0,0" FontSize="11.5"
+                                       Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Command="{Binding QueryEventsCommand}" Style="{StaticResource SecondaryButton}"
+                                MinHeight="27" Padding="13,0" Content="查询最近记录"
+                                ToolTip="查询设备最近 100 条刷卡/人脸/指纹通行记录" />
+                    </Grid>
+
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Events}"
+                              SelectionMode="Single"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              ToolTip="记录来自设备本机存储；人脸门禁终端支持刷卡/人脸/指纹多种验证方式">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="时间" Binding="{Binding Time}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+                                        <Setter Property="FontSize" Value="11.5" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="门" Binding="{Binding DoorNo}" Width="56" />
+                            <DataGridTextColumn Header="工号" Binding="{Binding EmployeeNo}" Width="110" />
+                            <DataGridTextColumn Header="姓名" Binding="{Binding PersonName}" Width="110" />
+                            <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+                                        <Setter Property="FontSize" Value="11.5" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="验证方式" Binding="{Binding VerifyKind}" Width="90" />
+                            <DataGridTextColumn Header="流水号" Binding="{Binding SerialNo}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="FontFamily" Value="{StaticResource FontMono}" />
+                                        <Setter Property="FontSize" Value="11.5" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

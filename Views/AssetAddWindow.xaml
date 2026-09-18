@@ -1,0 +1,166 @@
+<Window x:Class="HikDeployTool.Views.AssetAddWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="添加设备到台账"
+        Width="560" SizeToContent="Height" MaxHeight="720"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{StaticResource BrushAppBackground}"
+        FontFamily="{StaticResource FontUi}"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
+
+    <!--
+      台账「手工新增」弹窗（对标海康 iVMS/平台端 的「添加设备」窗口）：
+        · IP/域名   —— 一台一台录（跨网段 / 改过 IP / 还没上线的都行）；
+        · IP 段     —— 同一 C 段批量补录，逐台验证后入库；
+        · 批量导入  —— 文本粘贴，一行一台：地址[,端口[,用户名[,密码[,名称]]]]。
+      勾选「验证登录凭据」时逐台试登录：通过的记「已验证」并把口令加密存进台账，
+      预览页就能对这台设备免密直连。为什么不做成只加空行：空行记录半年后没人认得。
+    -->
+
+    <Grid Margin="22,18,22,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== 标题 + 添加模式 ==================== -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,4">
+            <TextBlock Text="添加设备" Style="{StaticResource TextPageTitle}" FontSize="16" />
+            <TextBlock Style="{StaticResource TextHint}" Margin="0,3,0,0"
+                       Text="手工补录不在本次搜索范围内的设备，补全凭据后可与预览、验收页打通。" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,4">
+            <TextBlock Text="添加模式" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,14,0" />
+            <RadioButton x:Name="ModeSingle" GroupName="AddMode" IsChecked="True"
+                         Content="IP / 域名" Margin="0,0,18,0" Checked="OnModeChanged" />
+            <RadioButton x:Name="ModeRange" GroupName="AddMode"
+                         Content="IP 段" Margin="0,0,18,0" Checked="OnModeChanged" />
+            <RadioButton x:Name="ModeBatch" GroupName="AddMode"
+                         Content="批量导入" Checked="OnModeChanged" />
+        </StackPanel>
+
+        <!-- ==================== 三种模式的表单（互斥显示） ==================== -->
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <!-- —— 模式一：单台 —— -->
+            <StackPanel x:Name="PanelSingle">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="名称（选填）" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtName" Margin="0,0,0,8"
+                             ToolTip="如「北门球机」；留空则记为「手工录入设备」" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="地址" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtAddress" Margin="0,0,0,8"
+                             ToolTip="设备 IP 或域名，如 192.168.1.64" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="端口" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtPort" Text="8000" Margin="0,0,0,8"
+                             FontFamily="{StaticResource FontMono}"
+                             ToolTip="SDK 端口，默认 8000。请关注设备端口号，如果不符请修改" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="用户名" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtUser" Text="admin" Margin="0,0,0,8" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="密码" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,4" />
+                    <PasswordBox Grid.Row="4" Grid.Column="1" x:Name="PwdSingle" />
+                </Grid>
+            </StackPanel>
+
+            <!-- —— 模式二：IP 段 —— -->
+            <StackPanel x:Name="PanelRange" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="起始 IP 地址" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtStartIp" Margin="0,0,0,8"
+                             FontFamily="{StaticResource FontMono}"
+                             ToolTip="如 192.168.1.60" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="结束 IP 地址" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtEndIp" Margin="0,0,0,8"
+                             FontFamily="{StaticResource FontMono}"
+                             ToolTip="如 192.168.1.70；仅支持同一 C 段（前三个数字相同），一次最多 254 台" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="端口" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtRangePort" Text="8000" Margin="0,0,0,8"
+                             FontFamily="{StaticResource FontMono}" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="用户名" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,8" />
+                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtRangeUser" Text="admin" Margin="0,0,0,8" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="密码" Style="{StaticResource TextLabel}"
+                               VerticalAlignment="Center" Margin="0,0,10,4" />
+                    <PasswordBox Grid.Row="4" Grid.Column="1" x:Name="PwdRange" />
+                </Grid>
+            </StackPanel>
+
+            <!-- —— 模式三：批量导入 —— -->
+            <StackPanel x:Name="PanelBatch" Visibility="Collapsed">
+                <TextBlock Text="每行一台，格式：地址[,端口[,用户名[,密码[,名称]]]]" Style="{StaticResource TextLabel}"
+                           Margin="0,0,0,6" />
+                <TextBox x:Name="TxtBatch" Height="118" AcceptsReturn="True" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         FontFamily="{StaticResource FontMono}" FontSize="12"
+                         ToolTip="示例：&#x0a;192.168.1.64,8000,admin,abcd1234,北门球机&#x0a;192.168.1.65   ← 只填地址也可以" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ==================== 验证选项 + 进度 ==================== -->
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+            <CheckBox x:Name="ChkVerify" IsChecked="True"
+                      Content="验证登录凭据后入库（通过的记「已验证」并保存口令，预览页免密直连）"
+                      ToolTip="不勾选则直接入库，不联网验证；口令仍会加密保存，但预览页要手动登录一次才算免密" />
+            <TextBlock x:Name="StatusText" Style="{StaticResource TextHint}" Margin="0,8,0,0"
+                       TextWrapping="Wrap" Visibility="Collapsed" />
+        </StackPanel>
+
+        <!-- ==================== 按钮 ==================== -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button x:Name="BtnAddAndContinue" Style="{StaticResource SecondaryButton}" MinWidth="104"
+                    Content="添加并继续" Click="OnAddAndContinueClick"
+                    ToolTip="入库后不关窗口，清空输入继续录下一台" />
+            <Button x:Name="BtnAdd" Style="{StaticResource PrimaryButton}" MinWidth="92" Margin="10,0,0,0"
+                    Content="添加" Click="OnAddClick" />
+            <Button Style="{StaticResource GhostButton}" MinWidth="76" Margin="10,0,0,0"
+                    Content="取消" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

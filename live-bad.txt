@@ -1,0 +1,18 @@
+﻿海康设备交付运维工具 自检报告  2026-09-15 16:22:21
+程序目录：C:\Users\admin\Desktop\海康\HikDeployTool\src\HikDeployTool\bin\Release\net10.0-windows\win-x64\
+进程权限：普通用户
+------------------------------------------------------------------
+
+【界面实机自检】
+[失败] 主窗口无法显示：无法对“HikDeployTool.ViewModels.DeviceDiscoveryViewModel”类型的只读属性“ProbeProgress”进行 TwoWay 或 OneWayToSource 绑定。
+[正常] DeviceDiscoveryViewModel：切换 + 布局无异常
+[正常] ActivationViewModel：切换 + 布局无异常
+[正常] NetworkConfigViewModel：切换 + 布局无异常
+[正常] PasswordResetViewModel：切换 + 布局无异常
+[正常] AssetViewModel：切换 + 布局无异常
+[正常] AcceptanceViewModel：切换 + 布局无异常
+[正常] LogViewModel：切换 + 布局无异常
+[正常] SettingsViewModel：切换 + 布局无异常
+
+------------------------------------------------------------------
+结论：实机界面自检发现问题，请按上面的明细处理（可能存在打不开的页面）。

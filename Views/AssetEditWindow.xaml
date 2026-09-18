@@ -1,0 +1,124 @@
+<Window x:Class="HikDeployTool.Views.AssetEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="编辑台账记录"
+        Width="560" SizeToContent="Height" MaxHeight="760"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{StaticResource BrushAppBackground}"
+        FontFamily="{StaticResource FontUi}"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
+
+    <!--
+      台账「编辑」弹窗：改名称/位置/备注这类交付信息，也允许修正
+      IP/端口/凭据/序列号（手工补录时填错是常事）。
+      口令框留空 = 不修改已保存的口令；填了就覆盖（DPAPI 加密落盘）。
+      序列号/MAC 谨慎修改——免密直连与「同步最新信息」按它们匹配设备。
+    -->
+
+    <Grid Margin="22,18,22,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,6">
+            <TextBlock Text="编辑设备信息" Style="{StaticResource TextPageTitle}" FontSize="16" />
+            <TextBlock x:Name="TxtSubTitle" Style="{StaticResource TextHint}" Margin="0,3,0,0"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="96" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="台账编号" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtId" VerticalAlignment="Center" Margin="0,0,0,8"
+                       FontWeight="SemiBold" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="设备名称" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtName" Margin="0,0,0,8"
+                     ToolTip="如「北门球机」" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="安装位置" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtLocation" Margin="0,0,0,8"
+                     ToolTip="例如：1 号楼 3 层东侧走廊吊顶" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="IP 地址" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtIp" Margin="0,0,0,8"
+                     FontFamily="{StaticResource FontMono}" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="SDK 端口" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtPort" Margin="0,0,0,8"
+                     FontFamily="{StaticResource FontMono}"
+                     ToolTip="SDK 端口，默认 8000" />
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="用户名" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtUser" Margin="0,0,0,8" />
+
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="登录口令" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <StackPanel Grid.Row="6" Grid.Column="1" Margin="0,0,0,8">
+                <PasswordBox x:Name="PwdPassword" />
+                <TextBlock Style="{StaticResource TextHint}" Margin="0,4,0,0"
+                           Text="留空表示不修改已保存的口令；填入新口令会加密覆盖（预览/门禁页免密直连用它）。" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="7" Grid.Column="0" Text="序列号" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="7" Grid.Column="1" x:Name="TxtSerial" Margin="0,0,0,8"
+                     FontFamily="{StaticResource FontMono}"
+                     ToolTip="谨慎修改：免密直连与「同步最新信息」按序列号匹配设备" />
+
+            <TextBlock Grid.Row="8" Grid.Column="0" Text="MAC" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="8" Grid.Column="1" x:Name="TxtMac" Margin="0,0,0,8"
+                     FontFamily="{StaticResource FontMono}" />
+
+            <TextBlock Grid.Row="9" Grid.Column="0" Text="设备型号" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="9" Grid.Column="1" x:Name="TxtModel" Margin="0,0,0,8" />
+
+            <TextBlock Grid.Row="10" Grid.Column="0" Text="固件版本" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Center" Margin="0,0,10,8" />
+            <TextBox Grid.Row="10" Grid.Column="1" x:Name="TxtFirmware" Margin="0,0,0,8" />
+
+            <TextBlock Grid.Row="11" Grid.Column="0" Text="备注" Style="{StaticResource TextLabel}"
+                       VerticalAlignment="Top" Margin="0,4,10,8" />
+            <TextBox Grid.Row="11" Grid.Column="1" x:Name="TxtNote" Margin="0,0,0,8" MinHeight="56"
+                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                     ToolTip="可填写线缆走向、供电方式、甲方要求等" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Style="{StaticResource PrimaryButton}" MinWidth="92" Content="保存" Click="OnSaveClick" />
+            <Button Style="{StaticResource GhostButton}" MinWidth="76" Margin="10,0,0,0"
+                    Content="取消" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

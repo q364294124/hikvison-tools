@@ -1,0 +1,142 @@
+<Window x:Class="HikDeployTool.Views.ChannelManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="通道管理"
+        Width="760" Height="580" MinWidth="640" MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{StaticResource BrushAppBackground}"
+        FontFamily="{StaticResource FontUi}"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True">
+
+    <!--
+      通道管理弹窗（预览页「通道管理」按钮）：
+        · 每路通道一张卡：缩略图（后台逐路抓 JPEG，悬停看大图）+ 名称（可改）+ 显示开关；
+        · 勾掉 = 预览树里不列（持久化到 channel_prefs.json，比自动判定优先）；
+        · 打开时自动同步 OSD 名称（设备端配的通道名，即画面上叠加的名字）。
+      为什么要这个弹窗：ISAPI 自动判定"有无画面"覆盖不了所有固件，
+      现场总要留一个"我说了算"的地方，顺手把"哪路是哪路"也解决了。
+    -->
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 标题 -->
+        <StackPanel Grid.Row="0">
+            <TextBlock x:Name="TxtTitle" Style="{StaticResource TextPageTitle}" FontSize="16" />
+            <TextBlock Style="{StaticResource TextHint}" Margin="0,3,0,0"
+                       Text="勾选 = 在预览树显示；取消勾选 = 隐藏（保存后生效）。悬停缩略图可放大预览；名称改动会同步到预览树与画面标题。" />
+        </StackPanel>
+
+        <!-- 工具条 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,8">
+            <Button x:Name="BtnSelectAll" Style="{StaticResource GhostButton}" MinHeight="28"
+                    Padding="12,0" Content="全选" Click="OnSelectAll" />
+            <Button x:Name="BtnSelectNone" Style="{StaticResource GhostButton}" MinHeight="28"
+                    Padding="12,0" Content="全不选" Margin="8,0,0,0" Click="OnSelectNone" />
+            <Button x:Name="BtnSyncOsd" Style="{StaticResource GhostButton}" MinHeight="28"
+                    Padding="12,0" Content="同步OSD名称" Margin="8,0,0,0"
+                    Click="OnSyncOsd" ToolTip="从设备重新拉取通道名（设备端配置的 OSD 名称）。拉不到就会显示编号——先在 NVR 的通道管理里给摄像头配好名称。" />
+            <Button x:Name="BtnRefreshThumbs" Style="{StaticResource GhostButton}" MinHeight="28"
+                    Padding="12,0" Content="刷新缩略图" Margin="8,0,0,0" Click="OnRefreshThumbs" />
+            <TextBlock x:Name="TxtProgress" VerticalAlignment="Center" Margin="16,0,0,0"
+                       FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" />
+        </StackPanel>
+
+        <!-- 通道卡片墙 -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource BrushDivider}" BorderThickness="1"
+                CornerRadius="8" Background="{StaticResource BrushSurfaceAlt}" Padding="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="Cards" ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- 单张卡：缩略图（上）+ 开关/名称（下）。
+                                 ToolTip 绑同一个缩略图源 —— 悬停即放大预览，
+                                 InitialShowDelay 稍作延迟避免划过时闪一堆弹层。 -->
+                            <Border Width="164" Margin="4" CornerRadius="8"
+                                    BorderBrush="{StaticResource BrushDivider}"
+                                    BorderThickness="1" Background="{StaticResource BrushSurface}"
+                                    Padding="8" ToolTipService.InitialShowDelay="350"
+                                    ToolTipService.ShowDuration="30000">
+                                <ToolTipService.ToolTip>
+                                    <ToolTip Background="{StaticResource BrushSurface}"
+                                             HasDropShadow="True">
+                                        <StackPanel>
+                                            <Image Source="{Binding Thumb}" MaxWidth="480" MaxHeight="270"
+                                                   Stretch="Uniform" />
+                                            <TextBlock Text="{Binding HoverText}" Margin="0,6,0,0"
+                                                       FontSize="12" Foreground="{StaticResource BrushTextSecondary}" />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </ToolTipService.ToolTip>
+
+                                <StackPanel>
+                                    <!-- 缩略图区：3:2 比例，黑底 -->
+                                    <Border Background="#101318" CornerRadius="6" ClipToBounds="True"
+                                            Height="92">
+                                        <Grid>
+                                            <Image Source="{Binding Thumb}" Stretch="Uniform" Margin="2" />
+                                            <!-- 抓图中 / 失败 的状态字 -->
+                                            <TextBlock Text="{Binding StatusText}" FontSize="10.5"
+                                                       Foreground="#8D9AAA" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Bottom" Margin="0,0,0,4" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center"
+                                                  ToolTip="勾选后该通道出现在预览树" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ChannelText}"
+                                                   FontSize="11" Margin="8,0,0,0"
+                                                   Foreground="{StaticResource BrushTextSecondary}"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="SDK 真实通道号（取流内部用）" />
+                                    </Grid>
+
+                                    <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,6,0,0" FontSize="12"
+                                             ToolTip="通道显示名（打开弹窗时自动同步设备 OSD 名称，也可手改）" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- 底部按钮 -->
+        <Grid Grid.Row="3" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="TxtSummary" Grid.Column="0" VerticalAlignment="Center"
+                       FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" />
+
+            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="保存"
+                    MinWidth="88" MinHeight="30" Click="OnSave" />
+            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="保存并关闭"
+                    MinWidth="104" MinHeight="30" Margin="10,0,0,0" Click="OnSaveAndClose" />
+        </Grid>
+    </Grid>
+</Window>

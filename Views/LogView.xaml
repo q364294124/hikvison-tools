@@ -1,0 +1,209 @@
+<UserControl x:Class="HikDeployTool.Views.LogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:HikDeployTool.Views">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== 工具条 ==================== -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <TextBlock Text="等级" Style="{StaticResource TextLabel}" />
+                    <ComboBox ItemsSource="{Binding LevelFilters}"
+                              SelectedItem="{Binding SelectedLevel}"
+                              DisplayMemberPath="Label"
+                              MinWidth="140"
+                              ToolTip="现场排障建议先切到「仅警告与错误」" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                    <TextBlock Text="关键字" Style="{StaticResource TextLabel}" />
+                    <TextBox Width="260"
+                             Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="匹配内容、来源与异常堆栈；错误码直接搜数字最快" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,16,8">
+                    <CheckBox Content="自动滚动到最新" IsChecked="{Binding AutoScroll}"
+                              ToolTip="取消勾选后新日志仍会记录，只是视图不再跳动，方便你盯着某一条看" />
+                </StackPanel>
+
+                <Button Grid.Column="3" Command="{Binding ReloadCommand}" Style="{StaticResource SecondaryButton}"
+                        VerticalAlignment="Bottom" Margin="0,0,16,2" Content="刷新" />
+
+                <StackPanel Grid.Column="4" VerticalAlignment="Bottom" Margin="0,0,12,2">
+                    <Border Style="{StaticResource ChipAccent}" HorizontalAlignment="Left">
+                        <TextBlock Style="{StaticResource ChipAccentText}" Text="{Binding Summary}" />
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Command="{Binding CopySelectedCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Content="复制选中" />
+                    <Button Command="{Binding CopyAllCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Content="复制筛选结果" />
+                    <Button Command="{Binding ExportCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Content="导出日志" />
+                    <Button Command="{Binding OpenLogFolderCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Content="日志目录" />
+                    <Button Command="{Binding ClearCommand}" Style="{StaticResource DangerButton}"
+                            ToolTip="只清空界面上的记录，磁盘上的历史日志文件不会被删除"
+                            Content="清空列表" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== 列表 + 详情 ==================== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" MinWidth="420" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="2*" MinWidth="300" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardTight}">
+                <ListBox x:Name="LogList"
+                         ItemsSource="{Binding View}"
+                         SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Foreground="{StaticResource BrushTextPrimary}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         views:AutoScrollHelper.IsEnabled="True"
+                         views:AutoScrollHelper.KeepAtEnd="{Binding AutoScroll}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Root" Background="Transparent" Padding="0,3">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Root" Property="Background"
+                                                        Value="{StaticResource BrushSurfaceAlt}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Root" Property="Background"
+                                                        Value="{StaticResource BrushAccentSoft}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 左侧色条：等级一眼可辨，比给整行上色更克制 -->
+                                <Border Grid.Column="0" Width="3" CornerRadius="2" Margin="0,1"
+                                        Background="{Binding Level, Converter={StaticResource LogLevelToBrush}}" />
+
+                                <TextBlock Grid.Column="1" Text="{Binding TimeText}" Margin="8,0,0,0"
+                                           FontFamily="{StaticResource FontMono}" FontSize="11.5"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           VerticalAlignment="Center" />
+
+                                <TextBlock Grid.Column="2" FontSize="11.5" VerticalAlignment="Center"
+                                           Text="{Binding Level, Converter={StaticResource LogLevelToTag}}"
+                                           Foreground="{Binding Level, Converter={StaticResource LogLevelToBrush}}" />
+
+                                <TextBlock Grid.Column="3" Text="{Binding Source}" FontSize="11.5"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{StaticResource BrushTextMuted}"
+                                           VerticalAlignment="Center" ToolTip="{Binding Source}" />
+
+                                <TextBlock Grid.Column="4" Text="{Binding Message}" Margin="4,0,8,0"
+                                           TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Foreground="{StaticResource BrushTextPrimary}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- 详情：堆栈单独摊开看，不挤在列表里 -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="14,12,14,0"
+                                Visibility="{Binding HasSelectedEntry, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource Chip}" Padding="8,2">
+                                <TextBlock Style="{StaticResource ChipText}"
+                                           Text="{Binding SelectedEntry.LevelText}" />
+                            </Border>
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       Text="{Binding SelectedEntry.Time, StringFormat='yyyy-MM-dd HH:mm:ss.fff'}" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       Foreground="{StaticResource BrushTextMuted}"
+                                       Text="{Binding SelectedEntry.Source}" />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                                   Text="{Binding SelectedEntry.Message}"
+                                   Foreground="{StaticResource BrushTextPrimary}"
+                                   FontSize="13.5" FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Divider}"
+                            Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+
+                    <TextBox Grid.Row="2" Style="{StaticResource TextArea}" IsReadOnly="True"
+                             Margin="14,10,14,14"
+                             Text="{Binding SelectedEntry.Detail, Mode=OneWay}"
+                             FontFamily="{StaticResource FontMono}" FontSize="11.5"
+                             TextWrapping="Wrap" AcceptsReturn="True"
+                             IsTabStop="False"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Disabled"
+                             Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+
+                    <StackPanel Grid.Row="0" Grid.RowSpan="3" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Visibility="{Binding HasSelectedEntry, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"
+                                IsHitTestVisible="False">
+                        <Path Data="{StaticResource IconTerminal}" Style="{StaticResource IconPath}"
+                              Width="38" Height="38" Stroke="{StaticResource BrushBorderStrong}"
+                              StrokeThickness="1.2" HorizontalAlignment="Center" />
+                        <TextBlock Style="{StaticResource TextHint}" HorizontalAlignment="Center" MaxWidth="260"
+                                   TextAlignment="Center" Margin="0,10,0,0"
+                                   Text="在左边点一条日志，这里会显示完整的异常堆栈与处置建议。" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
